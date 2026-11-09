@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffdc00">
-  <meta name="description" content="Гумористичний тетріс про графіки відключень. Грай у браузері на комп'ютері й телефоні.">
-  <title>Тетріс: графік відключень ⚡</title>
+  <meta name="description" content="ДТЕКтріс — гумористична пародійна гра про графіки відключень. Грай у браузері на комп'ютері й телефоні.">
+  <title>ДТЕКтріс ⚡ — Світло буде. Мабуть.</title>
   <style>
     :root { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#171717; background:#f9f8f3; font-synthesis:none; --yellow:#ffdc00; --cell:clamp(21px,3.1vw,29px); --gap:2px; }
     * { box-sizing:border-box; }
@@ -91,6 +91,61 @@
       .tag { margin-left:18px; }
     }
     @media (max-width:390px) { :root { --cell:20px; --gap:2px; } .grid-head,.grid-row { grid-template-columns:42px max-content; column-gap:4px; } .columns span { font-size:10px; } }
+
+    /* Mobile play mode: the entire game and all controls fit in one viewport. */
+    @media (max-width:900px) {
+      :root { --cell:12px; --gap:1px; }
+      html, body { width:100%; height:100%; overflow:hidden; overscroll-behavior:none; }
+      .shell { height:100vh; height:100dvh; min-height:0; overflow:hidden; display:flex; flex-direction:column; padding:7px 8px max(6px, env(safe-area-inset-bottom)); }
+      .headline { display:block; flex:0 0 auto; }
+      .eyebrow, .tag, .lede { display:none; }
+      h1 { font-size:20px; line-height:1.08; padding-left:10px; letter-spacing:-.04em; white-space:nowrap; }
+      h1:before { width:4px; }
+      .date { display:inline-block; vertical-align:middle; margin:0 0 0 5px; padding:4px 7px; font-size:12px; line-height:1.2; letter-spacing:0; }
+      .game { flex:1 1 0; min-height:0; overflow:hidden; display:flex; flex-direction:column; margin-top:6px; padding:7px; border-radius:12px; }
+      .stats { flex:0 0 auto; display:flex; flex-wrap:nowrap; align-items:center; padding-bottom:6px; gap:4px; }
+      .stat { min-width:0; flex:1 1 0; }
+      .stat-label { font-size:9px; margin-bottom:0; }
+      .stat-value { font-size:20px; }
+      .next-wrap { flex:0 0 auto; gap:3px; }
+      .preview { grid-template-columns:repeat(4,10px); grid-template-rows:repeat(4,10px); gap:1px; }
+      .preview-cell { width:10px; height:10px; }
+      .content { flex:1 1 0; min-height:0; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:5px; padding:4px 0 0; overflow:hidden; }
+      .grid-area { flex:0 0 auto; max-width:100%; }
+      .grid-head, .grid-row { grid-template-columns:38px max-content; column-gap:4px; }
+      .grid-head { margin-bottom:3px; }
+      .corner { font-size:8px; }
+      .columns span { font-size:9px; }
+      .hours span { font-size:8px; }
+      .cell.filled:after { height:1px; }
+      .sidebar { flex:0 0 auto; padding:0; width:100%; max-width:440px; display:flex; align-items:center; gap:6px; }
+      .sidebar .panel-title, .field-label, .side-joke, .instructions { display:none; }
+      .sidebar select { flex:1 1 auto; min-width:0; width:0; height:30px; padding:3px 5px; font-size:10px; }
+      .side-buttons { flex:0 0 auto; display:flex; gap:4px; margin:0; }
+      .light-btn { flex:0 0 auto; height:30px; padding:3px 7px; font-size:10px; border-radius:8px; }
+      .controls { flex:0 0 auto; margin-top:5px; padding:3px 1px 0; gap:6px; z-index:5; }
+      .control { height:50px; min-width:0; font-size:25px; border-radius:12px; }
+      .status, .footer { display:none; }
+      .overlay-dialog { width:min(210px, calc(100vw - 35px)); max-width:none; flex-shrink:0; padding:13px; }
+      .overlay-dialog strong { font-size:17px; }
+      .overlay-dialog p { font-size:11px; margin-bottom:9px; }
+      .primary { padding:9px 12px; font-size:12px; }
+    }
+    @media (max-width:350px) {
+      h1 { font-size:18px; }
+      .date { font-size:11px; }
+      .grid-head, .grid-row { grid-template-columns:34px max-content; column-gap:3px; }
+      .control { height:46px; }
+      .side-buttons { gap:3px; }
+      .light-btn { padding:3px 5px; font-size:9px; }
+    }
+    @media (max-width:900px) and (max-height:460px) {
+      .sidebar { display:none; }
+      .content { gap:0; }
+      h1 { font-size:16px; }
+      .stats { padding-bottom:3px; }
+      .control { height:44px; }
+    }
     @media (prefers-reduced-motion:reduce) { *,*:before,*:after { transition:none!important; animation:none!important; } }
   </style>
 </head>
@@ -99,11 +154,11 @@
     <div class="headline">
       <div>
         <p class="eyebrow">⚡ Гра, а не справжній графік</p>
-        <h1>Тетріс: графік<br>відключень на <span class="date">10 ЛИСТОПАДА</span></h1>
+        <h1>ДТЕКтріс <span class="date">10 ЛИСТОПАДА</span></h1>
       </div>
       <span class="tag">Українська версія 🇺🇦</span>
     </div>
-    <p class="lede">Склади графік, який неможливо передбачити. Як у житті, але з кнопкою «Пауза».</p>
+    <p class="lede">Світло буде. Мабуть. Склади графік, який неможливо передбачити.</p>
     <section class="game" aria-label="Ігрове поле тетрісу">
       <div class="stats">
         <div class="stat"><span class="stat-label">Рахунок</span><strong class="stat-value" id="score">0</strong></div>
@@ -143,7 +198,7 @@
       </div>
       <div class="status" id="status" aria-live="polite"><span class="status-dot"></span><span id="status-text">Натисни «Почати гру».</span></div>
     </section>
-    <div class="footer">Зроблено для розваги. Клітинки вигадані й не показують реальних відключень.</div>
+    <div class="footer">Неофіційна пародійна гра, не пов’язана з компанією ДТЕК. Клітинки вигадані й не показують реальних відключень.</div>
   </main>
   <script>
     (() => {
@@ -274,7 +329,32 @@
       for(let i=0;i<H;i++){const el=document.createElement('span');el.textContent=String(i).padStart(2,'0')+'–'+String(i+1).padStart(2,'0');$('hours').appendChild(el);}
       for(let i=0;i<W*H;i++){const el=document.createElement('div');el.className='cell';els.board.appendChild(el);cells.push(el);}
       for(let i=0;i<16;i++){const el=document.createElement('div');el.className='preview-cell';els.preview.appendChild(el);previewCells.push(el);}
+
+      // Adapt the size of all 240 cells to the space between stats and controls.
+      // Keeping the buttons in the layout (rather than below the board) means no scrolling to play.
+      function fitMobileBoard(){
+        const root=document.documentElement;
+        if(!window.matchMedia('(max-width:900px)').matches){root.style.removeProperty('--cell');return;}
+        root.style.setProperty('--cell','12px');
+        const content=document.querySelector('.content');
+        const head=document.querySelector('.grid-head');
+        const sidebar=document.querySelector('.sidebar');
+        const frame=document.querySelector('.game');
+        if(!content||!head||!sidebar||!frame)return;
+        const gap=1;
+        // The board is 24 rows high and 10 columns wide.
+        const hBudget=content.clientHeight-head.offsetHeight-sidebar.offsetHeight-15;
+        const widthBudget=frame.clientWidth-38-4-20;
+        const heightCell=Math.floor((hBudget-23*gap)/24);
+        const widthCell=Math.floor((widthBudget-9*gap)/10);
+        const cell=Math.max(8,Math.min(29,heightCell,widthCell));
+        root.style.setProperty('--cell',cell+'px');
+      }
+      window.addEventListener('resize',fitMobileBoard);
+      if(window.visualViewport)window.visualViewport.addEventListener('resize',fitMobileBoard);
+      window.addEventListener('orientationchange',fitMobileBoard);
       reset(false);
+      fitMobileBoard();
     })();
   </script>
 </body>
