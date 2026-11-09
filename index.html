@@ -30,6 +30,13 @@
     .preview { display:grid; grid-template-columns:repeat(4,15px); grid-template-rows:repeat(4,15px); gap:2px; }
     .preview-cell { width:15px; height:15px; border-radius:2px; background:transparent; }
     .preview-cell.filled { background:var(--yellow); }
+    .dispatch { display:flex; align-items:center; gap:8px; min-width:0; min-height:38px; margin-top:13px; padding:8px 12px; border:1px solid #f1e5a2; border-radius:11px; background:#fff9dd; color:#3e3516; }
+    .dispatch-name { flex:0 0 auto; display:inline-block; padding:3px 7px; border-radius:6px; background:#ffdc00; font-size:10px; font-weight:850; letter-spacing:.01em; }
+    .dispatch-message { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:12px; line-height:1.2; font-weight:700; }
+    .dispatch.warning { background:#fff0e8; border-color:#f3cbbb; }
+    .dispatch.warning .dispatch-name { background:#ffd1b9; }
+    .dispatch.pop .dispatch-message { animation:message-pop .25s ease-out; }
+    @keyframes message-pop { from { opacity:.35; transform:translateY(3px); } to { opacity:1; transform:translateY(0); } }
     .content { display:grid; grid-template-columns:max-content minmax(200px,1fr); justify-content:space-around; gap:24px; padding-top:20px; }
     .grid-head,.grid-row { display:grid; grid-template-columns:49px max-content; column-gap:7px; }
     .grid-head { align-items:end; margin-bottom:7px; }
@@ -104,6 +111,9 @@
       .date { display:inline-block; vertical-align:middle; margin:0 0 0 5px; padding:4px 7px; font-size:12px; line-height:1.2; letter-spacing:0; }
       .game { flex:1 1 0; min-height:0; overflow:hidden; display:flex; flex-direction:column; margin-top:6px; padding:7px; border-radius:12px; }
       .stats { flex:0 0 auto; display:flex; flex-wrap:nowrap; align-items:center; padding-bottom:6px; gap:4px; }
+      .dispatch { flex:0 0 auto; min-height:25px; margin-top:5px; padding:4px 7px; gap:4px; border-radius:7px; }
+      .dispatch-name { display:none; }
+      .dispatch-message { font-size:10px; }
       .stat { min-width:0; flex:1 1 0; }
       .stat-label { font-size:9px; margin-bottom:0; }
       .stat-value { font-size:20px; }
@@ -141,6 +151,7 @@
     }
     @media (max-width:900px) and (max-height:460px) {
       .sidebar { display:none; }
+      .dispatch { min-height:22px; margin-top:3px; }
       .content { gap:0; }
       h1 { font-size:16px; }
       .stats { padding-bottom:3px; }
@@ -165,6 +176,10 @@
         <div class="stat"><span class="stat-label">Рядки</span><strong class="stat-value" id="lines">0</strong></div>
         <div class="stat"><span class="stat-label">Рівень</span><strong class="stat-value" id="level">1</strong></div>
         <div class="next-wrap"><div><span class="stat-label">Далі</span></div><div class="preview" id="preview" aria-label="Наступна фігура"></div></div>
+      </div>
+      <div class="dispatch" id="dispatch" role="status" aria-live="polite" aria-atomic="true">
+        <span class="dispatch-name">📢 Диспетчер</span>
+        <span class="dispatch-message" id="dispatch-message">⚡ Світло буде. Мабуть.</span>
       </div>
       <div class="content">
         <div class="grid-area">
@@ -221,9 +236,101 @@
         '0111000110', '1111101110', '0111100100', '0110011111',
         '1101111010', '0101101110', '1111111000', '1100111011'
       ];
+      // Memes are grouped by game event. Only one short line is shown at a time.
+      // All messages are fictional jokes, not announcements from a power company.
+      const MEMES = {
+        intro: [
+          '⚡ Графік сформовано. Поки що.',
+          '💡 Світло буде. Мабуть.',
+          '📢 Диспетчер на зв’язку. Здається.'
+        ],
+        start: [
+          '🚀 Поїхали! Графік сам себе не складе.',
+          '⚡ Ваша черга керувати світлом!',
+          '🔌 Підключення успішне. Поки що.',
+          '📢 Оновлений графік. Тепер точно. Мабуть.'
+        ],
+        quiet: [
+          '🧐 Графік стабільний. Це підозріло.',
+          '☕ Диспетчер пішов по чай. Тримайся.',
+          '📅 Наступне оновлення — несподівано.',
+          '🔌 Усе під контролем. Чиїм — невідомо.',
+          '💡 Шукаємо світло між рядками.',
+          '📢 Змін немає. Це вже новина.'
+        ],
+        clear1: [
+          '💡 Один рядок! Світло пробивається.',
+          '✅ Мінус одна проблема. Залишилось 23.',
+          '⚡ Одна черга отримала надію!',
+          '📢 Рядок звільнено від темряви.'
+        ],
+        clear2: [
+          '🔥 Два рядки! Диспетчер аплодує.',
+          '⚡ Дві черги щасливі. Тимчасово.',
+          '💡 Подвійне підключення! Оце так.',
+          '✅ Дві години світла. У нашій грі.'
+        ],
+        clear3: [
+          '🤯 Три рядки! Графік розгубився.',
+          '🏆 Три черги! Це точно законно?',
+          '⚡ Оце потужність! Майже магія.',
+          '💡 Диспетчер просить автограф.'
+        ],
+        clear4: [
+          '👑 ТЕТРІС! Світло на весь під’їзд!',
+          '⚡ Чотири рядки! Епічне підключення.',
+          '🏆 Диспетчер року! Без конкурсу.',
+          '🤯 Чотири одразу? Викликайте комісію!'
+        ],
+        level: [
+          '⬆️ Новий рівень. Нові сюрпризи.',
+          '🔋 Рівень зріс. Запаси кави — ні.',
+          '⚡ Складність підвищено без попередження.',
+          '🏆 Тебе підвищено до старшого диспетчера.'
+        ],
+        danger: [
+          '🚨 Аварійний графік наближається!',
+          '⚠️ Клітинки дісталися верхніх поверхів!',
+          '🫣 Графік тріщить по швах!',
+          '🚨 Ситуація: «Ну майже ж вийшло!»'
+        ],
+        pause: [
+          '☕ Планова перерва. Цього разу справді.',
+          '⏸️ Графік на паузі. Не звикай.',
+          '🔌 Відключено від реальності на хвилинку.'
+        ],
+        resume: [
+          '▶️ Подачу гри відновлено!',
+          '⚡ Увімкнули назад. Оце сервіс!',
+          '💡 Продовжуємо. Запасайся реакцією.'
+        ],
+        over: [
+          '🫠 Графік змінено без попередження.',
+          '💀 Аварійне відключення. У грі, звісно.',
+          '😅 За графіком усе мало бути інакше.',
+          '🔌 Ну все, тепер точно до ранку.',
+          '🧩 План був чудовий. Фігури — проти.',
+          '📢 Причина відключення: «Так вийшло».',
+          '⚡ Спробуй ще. Графік сам не виправиться.'
+        ]
+      };
       const $=id=>document.getElementById(id);
-      const els={board:$('board'), preview:$('preview'),overlay:$('overlay'),overlayTitle:$('overlay-title'),overlayDescription:$('overlay-description'),overlayButton:$('overlay-button'),score:$('score'),lines:$('lines'),level:$('level'),status:$('status'),statusText:$('status-text'),pause:$('pause'),mode:$('mode')};
+      const els={board:$('board'), preview:$('preview'),overlay:$('overlay'),overlayTitle:$('overlay-title'),overlayDescription:$('overlay-description'),overlayButton:$('overlay-button'),score:$('score'),lines:$('lines'),level:$('level'),status:$('status'),statusText:$('status-text'),dispatch:$('dispatch'),dispatchMessage:$('dispatch-message'),pause:$('pause'),mode:$('mode')};
       let cells=[], previewCells=[], board=[], piece=null, next=null, bag=[], timer=null, running=false, paused=false, over=false, score=0, lines=0, level=1;
+      let lastMeme='', lockCount=0, dangerWarned=false;
+      function announce(category){
+        const choices=MEMES[category];
+        const fresh=choices.filter(line=>line!==lastMeme);
+        const pool=fresh.length?fresh:choices;
+        const line=pool[Math.floor(Math.random()*pool.length)];
+        lastMeme=line;
+        els.dispatchMessage.textContent=line;
+        els.dispatch.classList.toggle('warning',category==='danger');
+        els.dispatch.classList.remove('pop');
+        void els.dispatch.offsetWidth; // restart the tiny animation when a new joke appears
+        els.dispatch.classList.add('pop');
+        return line;
+      }
       const empty=()=>Array.from({length:H},()=>Array(W).fill(0));
       const shapeCopy=s=>s.map(r=>r.slice());
       const makePiece=shape=>({shape:shapeCopy(shape),x:Math.floor((W-shape[0].length)/2),y:0});
@@ -278,20 +385,35 @@
       function stopTimer(){if(timer!==null){clearInterval(timer);timer=null;}}
       function startTimer(){stopTimer();timer=setInterval(()=>{if(running&&!paused)gravity();},Math.max(125,940-(level-1)*75));}
       function reset(start=false){
-        stopTimer();board=makeBoard();bag=[];score=0;lines=0;level=1;over=false;paused=false;running=start;
+        stopTimer();board=makeBoard();bag=[];score=0;lines=0;level=1;over=false;paused=false;running=start;lockCount=0;dangerWarned=false;
         piece=makePiece(getShape());next=getShape();
         els.pause.textContent='Ⅱ Пауза';
-        if(start){if(valid(piece.shape,piece.x,piece.y)){hideOverlay();startTimer();setStatus('Світло є. Поки що. ⚡',true);}else gameOver();}
-        else {showOverlay('Складемо графік?','Лови фігури та заповнюй рядки. Хто сказав, що це просто?','▶ Почати гру');setStatus('Натисни «Почати гру».',false);}
+        if(start){if(valid(piece.shape,piece.x,piece.y)){hideOverlay();startTimer();announce('start');setStatus('Світло є. Поки що. ⚡',true);}else gameOver();}
+        else {showOverlay('Складемо графік?','Лови фігури та заповнюй рядки. Хто сказав, що це просто?','▶ Почати гру');announce('intro');setStatus('Натисни «Почати гру».',false);}
         draw();
       }
-      function gameOver(){running=false;over=true;paused=false;stopTimer();showOverlay('Графік зламався 😅','Набрано '+score+' очок. Може, складемо новий?','↻ Спробувати ще');setStatus('Гра завершена. Навіть графіки іноді здаються.',false);draw();}
+      function gameOver(){running=false;over=true;paused=false;stopTimer();const meme=announce('over');showOverlay('Графік зламався 😅','Твій рахунок: '+score.toLocaleString('uk-UA')+'. '+meme,'↻ Спробувати ще');setStatus('Гра завершена. Навіть графіки іноді здаються.',false);draw();}
       function spawn(){piece=makePiece(next);next=getShape();if(!valid(piece.shape,piece.x,piece.y))gameOver();}
       function lock(){
         piece.shape.forEach((r,ry)=>r.forEach((v,rx)=>{if(v){const y=piece.y+ry,x=piece.x+rx;if(y>=0&&y<H)board[y][x]=1;}}));
+        lockCount++;
         let cleared=0;
         for(let y=H-1;y>=0;y--){if(board[y].every(Boolean)){board.splice(y,1);board.unshift(Array(W).fill(0));cleared++;y++;}}
-        if(cleared){lines+=cleared;score+=([0,100,300,500,800][cleared]||800)*level;level=Math.floor(lines/10)+1;startTimer();setStatus('Є світло! Очищено '+cleared+' '+(cleared===1?'рядок':'рядки')+'.',true);}
+        if(cleared){
+          const oldLevel=level;
+          lines+=cleared;
+          score+=([0,100,300,500,800][cleared]||800)*level;
+          level=Math.floor(lines/10)+1;
+          startTimer();
+          announce(level>oldLevel?'level':'clear'+Math.min(cleared,4));
+          setStatus('Є світло! Очищено '+cleared+' '+(cleared===1?'рядок':'рядки')+'.',true);
+        }
+        const danger=board.slice(0,5).some(row=>row.some(Boolean));
+        if(!danger)dangerWarned=false;
+        if(!cleared){
+          if(danger&&!dangerWarned){announce('danger');dangerWarned=true;}
+          else if(lockCount%4===0){announce('quiet');}
+        }
         spawn();draw();
       }
       function gravity(){if(!piece||!running||paused)return;if(valid(piece.shape,piece.x,piece.y+1)){piece.y++;draw();}else lock();}
@@ -302,7 +424,7 @@
       }
       function softDrop(){if(!running||paused||!piece)return;if(valid(piece.shape,piece.x,piece.y+1)){piece.y++;score++;draw();}else lock();}
       function hardDrop(){if(!running||paused||!piece)return;let steps=0;while(valid(piece.shape,piece.x,piece.y+1)){piece.y++;steps++;}score+=steps*2;lock();}
-      function pause(){if(!running||over)return;paused=!paused;els.pause.textContent=paused?'▶ Далі':'Ⅱ Пауза';if(paused){stopTimer();showOverlay('Пауза ☕','Зараз усе за графіком. Можеш перепочити.','▶ Продовжити');setStatus('Гра на паузі.',false);}else{hideOverlay();startTimer();setStatus('Продовжуємо планові відключення.',true);}draw();}
+      function pause(){if(!running||over)return;paused=!paused;els.pause.textContent=paused?'▶ Далі':'Ⅱ Пауза';if(paused){stopTimer();showOverlay('Пауза ☕',announce('pause'),'▶ Продовжити');setStatus('Гра на паузі.',false);}else{hideOverlay();startTimer();announce('resume');setStatus('Продовжуємо планові відключення.',true);}draw();}
       function onControl(action){if(!running||paused)return;({left:()=>move(-1),right:()=>move(1),rotate,down:softDrop,drop:hardDrop})[action]();}
       ['left','right','rotate','down','drop'].forEach(action=>$(action).addEventListener('click',()=>onControl(action)));
       $('new').addEventListener('click',()=>reset(true));
