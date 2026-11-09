@@ -66,6 +66,10 @@
     .side-buttons { display:flex; gap:7px; margin:12px 0 17px; }
     .light-btn { border:1px solid #eae7dd; border-radius:11px; background:#fff; padding:10px 11px; font-size:12px; font-weight:800; flex:1; }
     .light-btn:hover { background:#fffbe5; }
+    .sound-btn { flex:0 0 auto; white-space:nowrap; }
+    .sound-btn[aria-pressed="false"] { color:#868279; background:#f5f4f0; }
+    .sound-btn .sound-icon { margin-right:3px; }
+
     .instructions { border-top:1px solid #efede6; padding-top:14px; }
     .instructions p { font-size:11px; color:#858174; line-height:1.6; margin:5px 0 12px; }
     kbd { font-family:inherit; display:inline-block; background:#f3f1ea; padding:2px 5px; border-radius:4px; color:#3d3b36; font-size:10px; font-weight:750; }
@@ -133,6 +137,9 @@
       .sidebar select { flex:1 1 auto; min-width:0; width:0; height:30px; padding:3px 5px; font-size:10px; }
       .side-buttons { flex:0 0 auto; display:flex; gap:4px; margin:0; }
       .light-btn { flex:0 0 auto; height:30px; padding:3px 7px; font-size:10px; border-radius:8px; }
+      .sound-btn { width:34px; padding:3px 4px; }
+      .sound-btn .sound-icon { margin:0; }
+      .sound-btn .sound-label { display:none; }
       .controls { flex:0 0 auto; margin-top:5px; padding:3px 1px 0; gap:6px; z-index:5; }
       .control { height:50px; min-width:0; font-size:25px; border-radius:12px; }
       .status, .footer { display:none; }
@@ -148,6 +155,7 @@
       .control { height:46px; }
       .side-buttons { gap:3px; }
       .light-btn { padding:3px 5px; font-size:9px; }
+      .sound-btn { padding:3px; width:30px; }
     }
     @media (max-width:900px) and (max-height:460px) {
       .sidebar { display:none; }
@@ -199,8 +207,8 @@
             <option value="chaos">⚡ Як у відео — хаос</option>
             <option value="classic">🟨 З чистого аркуша</option>
           </select>
-          <div class="side-buttons"><button class="light-btn" id="new">↻ Нова гра</button><button class="light-btn" id="pause">Ⅱ Пауза</button></div>
-          <div class="instructions"><h2 class="panel-title">Керування</h2><p><kbd>←</kbd> <kbd>→</kbd> рух · <kbd>↑</kbd> поворот<br><kbd>↓</kbd> прискорення · <kbd>Пробіл</kbd> скинути<br><kbd>P</kbd> пауза · <kbd>R</kbd> нова гра</p></div>
+          <div class="side-buttons"><button class="light-btn" id="new">↻ Нова гра</button><button class="light-btn" id="pause">Ⅱ Пауза</button><button class="light-btn sound-btn" id="sound" type="button" aria-label="Вимкнути звук" aria-pressed="true" title="Вимкнути звук (M)"><span class="sound-icon" aria-hidden="true">🔊</span><span class="sound-label">Звук</span></button></div>
+          <div class="instructions"><h2 class="panel-title">Керування</h2><p><kbd>←</kbd> <kbd>→</kbd> рух · <kbd>↑</kbd> поворот<br><kbd>↓</kbd> прискорення · <kbd>Пробіл</kbd> скинути<br><kbd>P</kbd> пауза · <kbd>R</kbd> нова гра · <kbd>M</kbd> звук</p></div>
           <div class="side-joke">💡 <strong>Порада від диспетчера:</strong> якщо не виходить, просто зміни графік. Знову.</div>
         </aside>
       </div>
@@ -315,9 +323,87 @@
         ]
       };
       const $=id=>document.getElementById(id);
-      const els={board:$('board'), preview:$('preview'),overlay:$('overlay'),overlayTitle:$('overlay-title'),overlayDescription:$('overlay-description'),overlayButton:$('overlay-button'),score:$('score'),lines:$('lines'),level:$('level'),status:$('status'),statusText:$('status-text'),dispatch:$('dispatch'),dispatchMessage:$('dispatch-message'),pause:$('pause'),mode:$('mode')};
+      const els={board:$('board'), preview:$('preview'),overlay:$('overlay'),overlayTitle:$('overlay-title'),overlayDescription:$('overlay-description'),overlayButton:$('overlay-button'),score:$('score'),lines:$('lines'),level:$('level'),status:$('status'),statusText:$('status-text'),dispatch:$('dispatch'),dispatchMessage:$('dispatch-message'),pause:$('pause'),sound:$('sound'),mode:$('mode')};
       let cells=[], previewCells=[], board=[], piece=null, next=null, bag=[], timer=null, running=false, paused=false, over=false, score=0, lines=0, level=1;
       let lastMeme='', lockCount=0, dangerWarned=false;
+      // Everything is synthesized with Web Audio: no sound files or external services.
+      // Audio context is created only after a player gesture (mobile autoplay policy).
+      const SOUND_KEY='dtektris-sound-v1';
+      const WebAudio=window.AudioContext||window.webkitAudioContext;
+      let audioCtx=null, soundEnabled=true;
+      try { soundEnabled=localStorage.getItem(SOUND_KEY)!=='off'; } catch (_) { /* private browsing */ }
+      function updateSoundButton(){
+        els.sound.setAttribute('aria-pressed',String(soundEnabled));
+        els.sound.setAttribute('aria-label',soundEnabled?'Вимкнути звук':'Увімкнути звук');
+        els.sound.title=(soundEnabled?'Вимкнути':'Увімкнути')+' звук (M)';
+        els.sound.querySelector('.sound-icon').textContent=soundEnabled?'🔊':'🔇';
+      }
+      function activateAudio(){
+        if(!soundEnabled||!WebAudio)return null;
+        try {
+          if(!audioCtx)audioCtx=new WebAudio();
+          if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});
+          return audioCtx;
+        }catch(_){return null;}
+      }
+      // Short, fairly quiet 8-bit tones; all oscillators are stopped and disconnected.
+      function beep(freq, duration, at=0, options={}){
+        const ctx=audioCtx;
+        if(!soundEnabled||!ctx||ctx.state==='closed')return;
+        try {
+          const t=ctx.currentTime+at;
+          const osc=ctx.createOscillator(), gain=ctx.createGain();
+          const volume=options.volume??0.03;
+          osc.type=options.type||'triangle';
+          osc.frequency.setValueAtTime(freq,t);
+          if(options.endFreq)osc.frequency.exponentialRampToValueAtTime(Math.max(1,options.endFreq),t+duration);
+          gain.gain.setValueAtTime(0.0001,t);
+          gain.gain.exponentialRampToValueAtTime(volume,t+Math.min(0.008,duration/3));
+          gain.gain.exponentialRampToValueAtTime(0.0001,t+duration);
+          osc.connect(gain);gain.connect(ctx.destination);
+          osc.onended=()=>{osc.disconnect();gain.disconnect();};
+          osc.start(t);osc.stop(t+duration+0.015);
+        }catch(_){/* On unsupported devices gameplay continues silently. */}
+      }
+      let lastMoveSfx=0, lastSoftSfx=0;
+      function sound(name, amount=1){
+        if(!soundEnabled)return;
+        if(!activateAudio())return;
+        const time=performance.now();
+        switch(name){
+          case 'move':
+            if(time-lastMoveSfx<65)return;
+            lastMoveSfx=time;
+            beep(200,.04,0,{type:'square',endFreq:165,volume:.012});break;
+          case 'rotate':beep(345,.085,0,{endFreq:510,volume:.031});break;
+          case 'soft':
+            if(time-lastSoftSfx<95)return;
+            lastSoftSfx=time;
+            beep(170,.035,0,{endFreq:135,volume:.012});break;
+          case 'drop':beep(240,.15,0,{type:'sawtooth',endFreq:82,volume:.047});break;
+          case 'lock':beep(110,.07,0,{type:'square',endFreq:82,volume:.017});break;
+          case 'clear':
+            [392,494,587,...(amount>=3?[784]:[])].forEach((f,i)=>beep(f,.13,i*.075,{volume:.041,type:'sine'}));
+            if(amount===4)beep(1047,.23,.32,{volume:.043});
+            break;
+          case 'level':
+            [330,440,554,659,880].forEach((f,i)=>beep(f,.14,i*.085,{volume:.038,type:'sine'}));break;
+          case 'over':
+            [440,330,220,110].forEach((f,i)=>beep(f,.19,i*.15,{volume:.036,type:'sawtooth',endFreq:f*.76}));break;
+          case 'pause':beep(355,.13,0,{endFreq:220,volume:.026});break;
+          case 'resume':beep(310,.14,0,{endFreq:480,volume:.029});break;
+          case 'start':
+            [330,494,659].forEach((f,i)=>beep(f,.14,i*.09,{volume:.028,type:'sine'}));break;
+          case 'toggle':beep(530,.1,0,{endFreq:720,volume:.026});break;
+        }
+      }
+      function toggleSound(){
+        soundEnabled=!soundEnabled;
+        try {localStorage.setItem(SOUND_KEY,soundEnabled?'on':'off');}catch(_){}
+        updateSoundButton();
+        if(soundEnabled)sound('toggle');
+      }
+      updateSoundButton();
       function announce(category){
         const choices=MEMES[category];
         const fresh=choices.filter(line=>line!==lastMeme);
@@ -388,11 +474,11 @@
         stopTimer();board=makeBoard();bag=[];score=0;lines=0;level=1;over=false;paused=false;running=start;lockCount=0;dangerWarned=false;
         piece=makePiece(getShape());next=getShape();
         els.pause.textContent='Ⅱ Пауза';
-        if(start){if(valid(piece.shape,piece.x,piece.y)){hideOverlay();startTimer();announce('start');setStatus('Світло є. Поки що. ⚡',true);}else gameOver();}
+        if(start){if(valid(piece.shape,piece.x,piece.y)){hideOverlay();startTimer();announce('start');sound('start');setStatus('Світло є. Поки що. ⚡',true);}else gameOver();}
         else {showOverlay('Складемо графік?','Лови фігури та заповнюй рядки. Хто сказав, що це просто?','▶ Почати гру');announce('intro');setStatus('Натисни «Почати гру».',false);}
         draw();
       }
-      function gameOver(){running=false;over=true;paused=false;stopTimer();const meme=announce('over');showOverlay('Графік зламався 😅','Твій рахунок: '+score.toLocaleString('uk-UA')+'. '+meme,'↻ Спробувати ще');setStatus('Гра завершена. Навіть графіки іноді здаються.',false);draw();}
+      function gameOver(){running=false;over=true;paused=false;stopTimer();sound('over');const meme=announce('over');showOverlay('Графік зламався 😅','Твій рахунок: '+score.toLocaleString('uk-UA')+'. '+meme,'↻ Спробувати ще');setStatus('Гра завершена. Навіть графіки іноді здаються.',false);draw();}
       function spawn(){piece=makePiece(next);next=getShape();if(!valid(piece.shape,piece.x,piece.y))gameOver();}
       function lock(){
         piece.shape.forEach((r,ry)=>r.forEach((v,rx)=>{if(v){const y=piece.y+ry,x=piece.x+rx;if(y>=0&&y<H)board[y][x]=1;}}));
@@ -406,6 +492,7 @@
           level=Math.floor(lines/10)+1;
           startTimer();
           announce(level>oldLevel?'level':'clear'+Math.min(cleared,4));
+          sound(level>oldLevel?'level':'clear',cleared);
           setStatus('Є світло! Очищено '+cleared+' '+(cleared===1?'рядок':'рядки')+'.',true);
         }
         const danger=board.slice(0,5).some(row=>row.some(Boolean));
@@ -414,21 +501,24 @@
           if(danger&&!dangerWarned){announce('danger');dangerWarned=true;}
           else if(lockCount%4===0){announce('quiet');}
         }
-        spawn();draw();
+        spawn();
+        if(!cleared&&running)sound('lock');
+        draw();
       }
       function gravity(){if(!piece||!running||paused)return;if(valid(piece.shape,piece.x,piece.y+1)){piece.y++;draw();}else lock();}
-      function move(dx){if(!running||paused||!piece)return;if(valid(piece.shape,piece.x+dx,piece.y)){piece.x+=dx;draw();}}
+      function move(dx){if(!running||paused||!piece)return;if(valid(piece.shape,piece.x+dx,piece.y)){piece.x+=dx;sound('move');draw();}}
       function rotate(){if(!running||paused||!piece)return;
         const old=piece.shape,rot=old[0].map((_,i)=>old.map(r=>r[i]).reverse());
-        for(const dx of [0,-1,1,-2,2]){if(valid(rot,piece.x+dx,piece.y)){piece.shape=rot;piece.x+=dx;draw();return;}}
+        for(const dx of [0,-1,1,-2,2]){if(valid(rot,piece.x+dx,piece.y)){piece.shape=rot;piece.x+=dx;sound('rotate');draw();return;}}
       }
-      function softDrop(){if(!running||paused||!piece)return;if(valid(piece.shape,piece.x,piece.y+1)){piece.y++;score++;draw();}else lock();}
-      function hardDrop(){if(!running||paused||!piece)return;let steps=0;while(valid(piece.shape,piece.x,piece.y+1)){piece.y++;steps++;}score+=steps*2;lock();}
-      function pause(){if(!running||over)return;paused=!paused;els.pause.textContent=paused?'▶ Далі':'Ⅱ Пауза';if(paused){stopTimer();showOverlay('Пауза ☕',announce('pause'),'▶ Продовжити');setStatus('Гра на паузі.',false);}else{hideOverlay();startTimer();announce('resume');setStatus('Продовжуємо планові відключення.',true);}draw();}
+      function softDrop(){if(!running||paused||!piece)return;if(valid(piece.shape,piece.x,piece.y+1)){piece.y++;score++;sound('soft');draw();}else lock();}
+      function hardDrop(){if(!running||paused||!piece)return;let steps=0;while(valid(piece.shape,piece.x,piece.y+1)){piece.y++;steps++;}score+=steps*2;sound('drop');lock();}
+      function pause(){if(!running||over)return;paused=!paused;els.pause.textContent=paused?'▶ Далі':'Ⅱ Пауза';if(paused){sound('pause');stopTimer();showOverlay('Пауза ☕',announce('pause'),'▶ Продовжити');setStatus('Гра на паузі.',false);}else{hideOverlay();startTimer();sound('resume');announce('resume');setStatus('Продовжуємо планові відключення.',true);}draw();}
       function onControl(action){if(!running||paused)return;({left:()=>move(-1),right:()=>move(1),rotate,down:softDrop,drop:hardDrop})[action]();}
       ['left','right','rotate','down','drop'].forEach(action=>$(action).addEventListener('click',()=>onControl(action)));
       $('new').addEventListener('click',()=>reset(true));
       els.pause.addEventListener('click',pause);
+      els.sound.addEventListener('click',toggleSound);
       els.overlayButton.addEventListener('click',()=>{if(paused)pause();else reset(true);});
       els.mode.addEventListener('change',()=>reset(false));
       window.addEventListener('keydown',e=>{
@@ -438,6 +528,7 @@
         }
         const key=e.key;
         if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','Spacebar'].includes(key))e.preventDefault();
+        if(key==='m'||key==='M'){toggleSound();return;}
         if(key==='r'||key==='R'){reset(true);return;}
         if(key==='p'||key==='P'){pause();return;}
         if(key==='Enter'&&!running&&!paused){reset(true);return;}
