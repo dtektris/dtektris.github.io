@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#ffdc00">
+  <meta name="description" content="Гумористичний тетріс про графіки відключень. Грай у браузері на комп'ютері й телефоні.">
+  <title>Тетріс: графік відключень ⚡</title>
+  <style>
+    :root { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color:#171717; background:#f9f8f3; font-synthesis:none; --yellow:#ffdc00; --cell:clamp(21px,3.1vw,29px); --gap:2px; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; }
+    button, select { font:inherit; }
+    button { cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+    button:focus-visible,select:focus-visible { outline:3px solid #9c7700; outline-offset:3px; }
+    .shell { max-width:940px; margin:0 auto; padding:32px 22px 50px; }
+    .headline { display:flex; flex-wrap:wrap; justify-content:space-between; gap:16px; align-items:center; }
+    .eyebrow { display:inline-block; font-weight:850; letter-spacing:.11em; font-size:10px; text-transform:uppercase; margin:0 0 13px; color:#7d7500; }
+    h1 { position:relative; margin:0; padding-left:18px; font-size:clamp(23px,3.4vw,38px); line-height:1.17; letter-spacing:-.055em; font-weight:900; }
+    h1:before { content:''; position:absolute; left:0; top:3px; height:calc(100% - 6px); width:5px; border-radius:10px; background:var(--yellow); }
+    .date { display:block; width:max-content; margin-top:9px; padding:6px 11px; border-radius:8px; background:var(--yellow); font-size:clamp(16px,2.5vw,25px); letter-spacing:-.02em; line-height:1.1; }
+    .tag { background:#fff; border:1px solid #eee9d8; border-radius:40px; padding:9px 13px; font-size:11px; font-weight:750; color:#65604e; }
+    .lede { margin:14px 0 20px; font-size:13px; color:#77746d; }
+    .game { background:#fff; border:1px solid #eae8df; border-radius:20px; padding:20px; box-shadow:0 16px 60px rgba(30,27,9,.055); }
+    .stats { display:flex; justify-content:space-between; gap:15px; padding-bottom:16px; border-bottom:1px solid #f0eee8; flex-wrap:wrap; align-items:flex-start; }
+    .stat { min-width:70px; }
+    .stat-label { display:block; font-size:11px; color:#99968e; font-weight:620; margin-bottom:3px; }
+    .stat-value { font-size:27px; font-weight:900; line-height:1.1; letter-spacing:-.06em; font-variant-numeric:tabular-nums; }
+    .next-wrap { display:flex; align-items:center; gap:10px; }
+    .preview { display:grid; grid-template-columns:repeat(4,15px); grid-template-rows:repeat(4,15px); gap:2px; }
+    .preview-cell { width:15px; height:15px; border-radius:2px; background:transparent; }
+    .preview-cell.filled { background:var(--yellow); }
+    .content { display:grid; grid-template-columns:max-content minmax(200px,1fr); justify-content:space-around; gap:24px; padding-top:20px; }
+    .grid-head,.grid-row { display:grid; grid-template-columns:49px max-content; column-gap:7px; }
+    .grid-head { align-items:end; margin-bottom:7px; }
+    .corner { color:#aaa69b; font-size:9px; font-weight:650; white-space:nowrap; }
+    .columns { display:grid; grid-template-columns:repeat(10,var(--cell)); gap:var(--gap); }
+    .columns span { font-size:11px; font-weight:800; text-align:center; letter-spacing:-.04em; }
+    .hours { display:grid; grid-template-rows:repeat(24,var(--cell)); gap:var(--gap); }
+    .hours span { display:flex; align-items:center; justify-content:center; color:#9a978e; font-size:10px; font-weight:600; font-variant-numeric:tabular-nums; }
+    .board-frame { position:relative; }
+    .board { display:grid; grid-template-columns:repeat(10,var(--cell)); grid-template-rows:repeat(24,var(--cell)); gap:var(--gap); background:#fff; border-radius:2px; }
+    .cell { display:flex; justify-content:center; align-items:center; width:var(--cell); height:var(--cell); border:1px solid #f5f4ef; border-radius:2px; font-size:calc(var(--cell)*.64); font-weight:900; line-height:1; user-select:none; }
+    .cell.filled { background:var(--yellow); color:#161616; border-color:var(--yellow); position:relative; }
+    .cell.filled:after { content:''; width:65%; height:2px; background:#101010; transform:rotate(48deg); position:absolute; }
+    .cell.current { background:#171717; border-color:#171717; color:var(--yellow); }
+    .cell.ghost { border:2px solid #c6c6c6; background:#fff; }
+    .overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.64); backdrop-filter:blur(2px); z-index:2; border-radius:5px; }
+    .overlay.hidden { display:none; }
+    .overlay-dialog { max-width:240px; padding:18px; border-radius:15px; background:white; box-shadow:0 12px 50px #0002; border:1px solid #e7e4d9; text-align:center; }
+    .overlay-dialog strong { display:block; margin-bottom:8px; font-size:20px; font-weight:900; letter-spacing:-.04em; }
+    .overlay-dialog p { margin:0 0 14px; color:#807b70; font-size:12px; line-height:1.5; }
+    .primary { border:0; background:var(--yellow); color:#141414; border-radius:12px; font-weight:850; padding:12px 18px; }
+    .primary:hover { background:#f3cd00; }
+    .sidebar { padding-top:9px; max-width:270px; }
+    .panel-title { font-size:14px; font-weight:850; margin:0 0 10px; }
+    .field-label { display:block; font-size:12px; color:#827e73; font-weight:700; margin:0 0 6px; }
+    select { width:100%; border:1px solid #e9e6db; border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700; color:#282820; background:#fff; }
+    .side-buttons { display:flex; gap:7px; margin:12px 0 17px; }
+    .light-btn { border:1px solid #eae7dd; border-radius:11px; background:#fff; padding:10px 11px; font-size:12px; font-weight:800; flex:1; }
+    .light-btn:hover { background:#fffbe5; }
+    .instructions { border-top:1px solid #efede6; padding-top:14px; }
+    .instructions p { font-size:11px; color:#858174; line-height:1.6; margin:5px 0 12px; }
+    kbd { font-family:inherit; display:inline-block; background:#f3f1ea; padding:2px 5px; border-radius:4px; color:#3d3b36; font-size:10px; font-weight:750; }
+    .side-joke { margin-top:24px; border-radius:12px; background:#fff9d4; font-size:12px; color:#635724; line-height:1.5; padding:13px 14px; }
+    .controls { margin-top:20px; display:flex; justify-content:space-between; gap:9px; }
+    .control { display:flex; justify-content:center; align-items:center; border-radius:100px; height:54px; min-width:52px; flex:1; font-size:25px; font-weight:700; border:1px solid #edece7; background:#fff; color:#141414; box-shadow:0 3px 9px #00000007; }
+    .control:hover { background:#f5f4ee; }
+    .control:active { transform:scale(.96); }
+    .control.drop { background:var(--yellow); border-color:var(--yellow); }
+    .control.drop:hover { background:#f2ca00; }
+    .status { display:flex; align-items:center; gap:7px; min-height:24px; padding-top:11px; color:#908b7f; font-size:12px; font-weight:550; }
+    .status-dot { width:7px; height:7px; background:#b4aea0; border-radius:50%; }
+    .status.live .status-dot { background:#37af67; }
+    .footer { padding-top:16px; font-size:11px; color:#999487; text-align:center; }
+    @media (max-width:700px) {
+      :root { --cell:clamp(21px,5.4vw,28px); }
+      .shell { padding:20px 11px 35px; }
+      .game { padding:14px 12px; }
+      .content { grid-template-columns:1fr; justify-items:center; gap:13px; }
+      .sidebar { padding-top:0; width:100%; max-width:380px; }
+      .instructions { display:none; }
+      .side-joke { margin-top:8px; }
+      .side-buttons { margin:10px 0 6px; }
+      .stats { gap:10px; }
+      .stat { min-width:56px; }
+      .stat-value { font-size:22px; }
+      .controls { gap:6px; }
+      .control { height:54px; min-width:0; font-size:24px; }
+      .lede { font-size:12px; }
+      .tag { margin-left:18px; }
+    }
+    @media (max-width:390px) { :root { --cell:20px; --gap:2px; } .grid-head,.grid-row { grid-template-columns:42px max-content; column-gap:4px; } .columns span { font-size:10px; } }
+    @media (prefers-reduced-motion:reduce) { *,*:before,*:after { transition:none!important; animation:none!important; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="headline">
+      <div>
+        <p class="eyebrow">⚡ Гра, а не справжній графік</p>
+        <h1>Тетріс: графік<br>відключень на <span class="date">10 ЛИСТОПАДА</span></h1>
+      </div>
+      <span class="tag">Українська версія 🇺🇦</span>
+    </div>
+    <p class="lede">Склади графік, який неможливо передбачити. Як у житті, але з кнопкою «Пауза».</p>
+    <section class="game" aria-label="Ігрове поле тетрісу">
+      <div class="stats">
+        <div class="stat"><span class="stat-label">Рахунок</span><strong class="stat-value" id="score">0</strong></div>
+        <div class="stat"><span class="stat-label">Рядки</span><strong class="stat-value" id="lines">0</strong></div>
+        <div class="stat"><span class="stat-label">Рівень</span><strong class="stat-value" id="level">1</strong></div>
+        <div class="next-wrap"><div><span class="stat-label">Далі</span></div><div class="preview" id="preview" aria-label="Наступна фігура"></div></div>
+      </div>
+      <div class="content">
+        <div class="grid-area">
+          <div class="grid-head"><span class="corner">Час/Гр.</span><div class="columns" id="columns"></div></div>
+          <div class="grid-row">
+            <div class="hours" id="hours"></div>
+            <div class="board-frame">
+              <div class="board" id="board" role="img" aria-label="Тетріс: графік відключень, 24 години та 10 груп"></div>
+              <div class="overlay" id="overlay"><div class="overlay-dialog"><strong id="overlay-title">Складемо графік?</strong><p id="overlay-description">Лови фігури та заповнюй рядки. Хто сказав, що це просто?</p><button class="primary" id="overlay-button">▶ Почати гру</button></div></div>
+            </div>
+          </div>
+        </div>
+        <aside class="sidebar">
+          <h2 class="panel-title">Налаштування</h2>
+          <label class="field-label" for="mode">Тип графіка</label>
+          <select id="mode">
+            <option value="chaos">⚡ Як у відео — хаос</option>
+            <option value="classic">🟨 З чистого аркуша</option>
+          </select>
+          <div class="side-buttons"><button class="light-btn" id="new">↻ Нова гра</button><button class="light-btn" id="pause">Ⅱ Пауза</button></div>
+          <div class="instructions"><h2 class="panel-title">Керування</h2><p><kbd>←</kbd> <kbd>→</kbd> рух · <kbd>↑</kbd> поворот<br><kbd>↓</kbd> прискорення · <kbd>Пробіл</kbd> скинути<br><kbd>P</kbd> пауза · <kbd>R</kbd> нова гра</p></div>
+          <div class="side-joke">💡 <strong>Порада від диспетчера:</strong> якщо не виходить, просто зміни графік. Знову.</div>
+        </aside>
+      </div>
+      <div class="controls" aria-label="Кнопки керування">
+        <button class="control" id="left" aria-label="Ліворуч">←</button>
+        <button class="control" id="rotate" aria-label="Повернути">↻</button>
+        <button class="control" id="right" aria-label="Праворуч">→</button>
+        <button class="control" id="down" aria-label="Опустити на одну клітинку">↓</button>
+        <button class="control drop" id="drop" aria-label="Скинути вниз">⇩</button>
+      </div>
+      <div class="status" id="status" aria-live="polite"><span class="status-dot"></span><span id="status-text">Натисни «Почати гру».</span></div>
+    </section>
+    <div class="footer">Зроблено для розваги. Клітинки вигадані й не показують реальних відключень.</div>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      const W=10, H=24;
+      const SHAPES = [
+        [[1,1,1,1]],
+        [[1,1],[1,1]],
+        [[0,1,0],[1,1,1]],
+        [[0,1,1],[1,1,0]],
+        [[1,1,0],[0,1,1]],
+        [[1,0,0],[1,1,1]],
+        [[0,0,1],[1,1,1]]
+      ];
+      const CHAOS = [
+        '0000000000', '0000000000', '0000000000', '0000000000',
+        '0000000000', '0000000000', '0000000000', '0000000000',
+        '1100000110', '0111000011', '0011100110', '0111111100',
+        '0111001111', '1100011000', '0111100000', '0011100010',
+        '0111000110', '1111101110', '0111100100', '0110011111',
+        '1101111010', '0101101110', '1111111000', '1100111011'
+      ];
+      const $=id=>document.getElementById(id);
+      const els={board:$('board'), preview:$('preview'),overlay:$('overlay'),overlayTitle:$('overlay-title'),overlayDescription:$('overlay-description'),overlayButton:$('overlay-button'),score:$('score'),lines:$('lines'),level:$('level'),status:$('status'),statusText:$('status-text'),pause:$('pause'),mode:$('mode')};
+      let cells=[], previewCells=[], board=[], piece=null, next=null, bag=[], timer=null, running=false, paused=false, over=false, score=0, lines=0, level=1;
+      const empty=()=>Array.from({length:H},()=>Array(W).fill(0));
+      const shapeCopy=s=>s.map(r=>r.slice());
+      const makePiece=shape=>({shape:shapeCopy(shape),x:Math.floor((W-shape[0].length)/2),y:0});
+      const shuffledBag=()=>{const ids=SHAPES.map((_,i)=>i);for(let i=ids.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}return ids;};
+      const getShape=()=>{if(!bag.length) bag=shuffledBag();return SHAPES[bag.pop()];};
+      function makeBoard(){
+        if(els.mode.value==='classic') return empty();
+        // The screenshot-inspired starting pattern: intentionally chaotic but playable.
+        return CHAOS.map((str,y)=>str.split('').map((v,x)=>{
+          if(y<8) return 0;
+          return v==='1'?1:0;
+        }));
+      }
+      function valid(shape,x,y){
+        for(let ry=0;ry<shape.length;ry++)for(let rx=0;rx<shape[ry].length;rx++){
+          if(!shape[ry][rx])continue;
+          const px=x+rx, py=y+ry;
+          if(px<0||px>=W||py>=H) return false;
+          if(py>=0&&board[py][px])return false;
+        }
+        return true;
+      }
+      function ghostY(){
+        if(!piece) return -1;
+        let y=piece.y;
+        while(valid(piece.shape,piece.x,y+1))y++;
+        return y;
+      }
+      function draw(){
+        const states=board.map(r=>r.map(v=>v?'filled':''));
+        if(piece){
+          const gy=ghostY();
+          piece.shape.forEach((r,ry)=>r.forEach((v,rx)=>{if(v){const x=piece.x+rx,y=gy+ry;if(y>=0&&y<H&&!states[y][x])states[y][x]='ghost';}}));
+          piece.shape.forEach((r,ry)=>r.forEach((v,rx)=>{if(v){const x=piece.x+rx,y=piece.y+ry;if(y>=0&&y<H)states[y][x]='current';}}));
+        }
+        for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+          const cell=cells[y*W+x], type=states[y][x];
+          cell.className='cell'+(type?' '+type:'');
+          cell.textContent=type==='filled'?'ϟ':type==='current'?'⚡':'';
+        }
+        previewCells.forEach(el=>{el.className='preview-cell';});
+        if(next){const sh=next, offx=Math.floor((4-sh[0].length)/2), offy=Math.floor((4-sh.length)/2);
+          sh.forEach((r,y)=>r.forEach((v,x)=>{if(v)previewCells[(y+offy)*4+x+offx].classList.add('filled');}));
+        }
+        els.score.textContent=score.toLocaleString('uk-UA');
+        els.lines.textContent=lines;
+        els.level.textContent=level;
+      }
+      function setStatus(text,live){els.statusText.textContent=text;els.status.classList.toggle('live',!!live);}
+      function showOverlay(title,desc,button){els.overlayTitle.textContent=title;els.overlayDescription.textContent=desc;els.overlayButton.textContent=button;els.overlay.classList.remove('hidden');}
+      function hideOverlay(){els.overlay.classList.add('hidden');}
+      function stopTimer(){if(timer!==null){clearInterval(timer);timer=null;}}
+      function startTimer(){stopTimer();timer=setInterval(()=>{if(running&&!paused)gravity();},Math.max(125,940-(level-1)*75));}
+      function reset(start=false){
+        stopTimer();board=makeBoard();bag=[];score=0;lines=0;level=1;over=false;paused=false;running=start;
+        piece=makePiece(getShape());next=getShape();
+        els.pause.textContent='Ⅱ Пауза';
+        if(start){if(valid(piece.shape,piece.x,piece.y)){hideOverlay();startTimer();setStatus('Світло є. Поки що. ⚡',true);}else gameOver();}
+        else {showOverlay('Складемо графік?','Лови фігури та заповнюй рядки. Хто сказав, що це просто?','▶ Почати гру');setStatus('Натисни «Почати гру».',false);}
+        draw();
+      }
+      function gameOver(){running=false;over=true;paused=false;stopTimer();showOverlay('Графік зламався 😅','Набрано '+score+' очок. Може, складемо новий?','↻ Спробувати ще');setStatus('Гра завершена. Навіть графіки іноді здаються.',false);draw();}
+      function spawn(){piece=makePiece(next);next=getShape();if(!valid(piece.shape,piece.x,piece.y))gameOver();}
+      function lock(){
+        piece.shape.forEach((r,ry)=>r.forEach((v,rx)=>{if(v){const y=piece.y+ry,x=piece.x+rx;if(y>=0&&y<H)board[y][x]=1;}}));
+        let cleared=0;
+        for(let y=H-1;y>=0;y--){if(board[y].every(Boolean)){board.splice(y,1);board.unshift(Array(W).fill(0));cleared++;y++;}}
+        if(cleared){lines+=cleared;score+=([0,100,300,500,800][cleared]||800)*level;level=Math.floor(lines/10)+1;startTimer();setStatus('Є світло! Очищено '+cleared+' '+(cleared===1?'рядок':'рядки')+'.',true);}
+        spawn();draw();
+      }
+      function gravity(){if(!piece||!running||paused)return;if(valid(piece.shape,piece.x,piece.y+1)){piece.y++;draw();}else lock();}
+      function move(dx){if(!running||paused||!piece)return;if(valid(piece.shape,piece.x+dx,piece.y)){piece.x+=dx;draw();}}
+      function rotate(){if(!running||paused||!piece)return;
+        const old=piece.shape,rot=old[0].map((_,i)=>old.map(r=>r[i]).reverse());
+        for(const dx of [0,-1,1,-2,2]){if(valid(rot,piece.x+dx,piece.y)){piece.shape=rot;piece.x+=dx;draw();return;}}
+      }
+      function softDrop(){if(!running||paused||!piece)return;if(valid(piece.shape,piece.x,piece.y+1)){piece.y++;score++;draw();}else lock();}
+      function hardDrop(){if(!running||paused||!piece)return;let steps=0;while(valid(piece.shape,piece.x,piece.y+1)){piece.y++;steps++;}score+=steps*2;lock();}
+      function pause(){if(!running||over)return;paused=!paused;els.pause.textContent=paused?'▶ Далі':'Ⅱ Пауза';if(paused){stopTimer();showOverlay('Пауза ☕','Зараз усе за графіком. Можеш перепочити.','▶ Продовжити');setStatus('Гра на паузі.',false);}else{hideOverlay();startTimer();setStatus('Продовжуємо планові відключення.',true);}draw();}
+      function onControl(action){if(!running||paused)return;({left:()=>move(-1),right:()=>move(1),rotate,down:softDrop,drop:hardDrop})[action]();}
+      ['left','right','rotate','down','drop'].forEach(action=>$(action).addEventListener('click',()=>onControl(action)));
+      $('new').addEventListener('click',()=>reset(true));
+      els.pause.addEventListener('click',pause);
+      els.overlayButton.addEventListener('click',()=>{if(paused)pause();else reset(true);});
+      els.mode.addEventListener('change',()=>reset(false));
+      window.addEventListener('keydown',e=>{
+        if(['SELECT','INPUT','TEXTAREA','BUTTON'].includes(document.activeElement.tagName) && e.key!=='Escape'){
+          // Buttons retain focus after tapping; allow keyboard game controls anyway except on select.
+          if(document.activeElement.tagName==='SELECT')return;
+        }
+        const key=e.key;
+        if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','Spacebar'].includes(key))e.preventDefault();
+        if(key==='r'||key==='R'){reset(true);return;}
+        if(key==='p'||key==='P'){pause();return;}
+        if(key==='Enter'&&!running&&!paused){reset(true);return;}
+        if(key==='ArrowLeft')move(-1);
+        else if(key==='ArrowRight')move(1);
+        else if(key==='ArrowUp')rotate();
+        else if(key==='ArrowDown')softDrop();
+        else if(key===' '||key==='Spacebar')hardDrop();
+      });
+      for(const t of ['1.1','1.2','2.1','2.2','3.1','3.2','4.1','4.2','5.1','5.2']){const el=document.createElement('span');el.textContent=t;$('columns').appendChild(el);}
+      for(let i=0;i<H;i++){const el=document.createElement('span');el.textContent=String(i).padStart(2,'0')+'–'+String(i+1).padStart(2,'0');$('hours').appendChild(el);}
+      for(let i=0;i<W*H;i++){const el=document.createElement('div');el.className='cell';els.board.appendChild(el);cells.push(el);}
+      for(let i=0;i<16;i++){const el=document.createElement('div');el.className='preview-cell';els.preview.appendChild(el);previewCells.push(el);}
+      reset(false);
+    })();
+  </script>
+</body>
+</html>
