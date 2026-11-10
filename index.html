@@ -24,6 +24,11 @@
     .game { background:#fff; border:1px solid #eae8df; border-radius:20px; padding:20px; box-shadow:0 16px 60px rgba(30,27,9,.055); }
     .stats { display:flex; justify-content:space-between; gap:15px; padding-bottom:16px; border-bottom:1px solid #f0eee8; flex-wrap:wrap; align-items:flex-start; }
     .stat { min-width:70px; }
+    .record-stat { appearance:none; border:0; background:transparent; text-align:left; padding:0; flex:0 1 auto; color:inherit; border-radius:5px; cursor:pointer; }
+    .record-stat:hover .stat-value { text-decoration:underline; text-decoration-color:#d4b500; text-underline-offset:4px; }
+    .record-stat .stat-value { display:block; }
+    .record-stat .stat-label { white-space:nowrap; }
+
     .stat-label { display:block; font-size:11px; color:#99968e; font-weight:620; margin-bottom:3px; }
     .stat-value { font-size:27px; font-weight:900; line-height:1.1; letter-spacing:-.06em; font-variant-numeric:tabular-nums; }
     .next-wrap { display:flex; align-items:center; gap:10px; }
@@ -84,6 +89,26 @@
     .status-dot { width:7px; height:7px; background:#b4aea0; border-radius:50%; }
     .status.live .status-dot { background:#37af67; }
     .footer { padding-top:16px; font-size:11px; color:#999487; text-align:center; }
+    .records-dialog.hidden { display:none; }
+    .records-dialog { position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; padding:14px; background:rgba(17,17,15,.55); }
+    .records-panel { width:min(440px,100%); max-height:min(90dvh,620px); overflow:auto; padding:21px; border-radius:18px; background:#fff; box-shadow:0 20px 90px #0004; color:#171717; }
+    .records-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .records-head h2 { font-size:21px; line-height:1.2; font-weight:900; letter-spacing:-.04em; margin:0; }
+    .records-close { flex:0 0 auto; font-size:23px; width:36px; height:36px; border:1px solid #e8e5dc; background:#fff; border-radius:10px; }
+    .records-note { font-size:12px; line-height:1.55; color:#7d786b; margin:9px 0 16px; }
+    .records-tabs { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:4px; border-radius:12px; background:#f4f2eb; }
+    .records-tab { background:transparent; border:0; border-radius:9px; padding:9px 7px; font-size:12px; font-weight:750; color:#635e50; }
+    .records-tab[aria-pressed="true"] { background:var(--yellow); color:#171717; }
+    .records-list { padding:0; margin:16px 0 0; list-style:none; display:grid; gap:8px; }
+    .records-entry { display:flex; align-items:center; gap:11px; padding:10px 12px; border:1px solid #eeeae1; border-radius:11px; }
+    .records-rank { flex:0 0 30px; font-size:20px; font-weight:900; color:#a8a394; }
+    .records-entry:first-child .records-rank { color:#b18a00; }
+    .records-data { flex:1; min-width:0; }
+    .records-points { display:block; font-size:18px; font-weight:900; line-height:1.2; font-variant-numeric:tabular-nums; }
+    .records-details { display:block; font-size:11px; color:#918b80; margin-top:3px; }
+    .records-empty { font-size:13px; color:#8c877b; text-align:center; padding:24px 8px; background:#faf9f4; border-radius:11px; }
+    body.records-open { overflow:hidden; }
+
     @media (max-width:700px) {
       :root { --cell:clamp(21px,5.4vw,28px); }
       .shell { padding:20px 11px 35px; }
@@ -95,6 +120,7 @@
       .side-buttons { margin:10px 0 6px; }
       .stats { gap:10px; }
       .stat { min-width:56px; }
+      .record-stat { min-width:56px; }
       .stat-value { font-size:22px; }
       .controls { gap:6px; }
       .control { height:54px; min-width:0; font-size:24px; }
@@ -119,6 +145,8 @@
       .dispatch-name { display:none; }
       .dispatch-message { font-size:10px; }
       .stat { min-width:0; flex:1 1 0; }
+      .record-stat { min-width:0; flex:1 1 0; }
+      .record-stat .stat-value { font-size:19px; }
       .stat-label { font-size:9px; margin-bottom:0; }
       .stat-value { font-size:20px; }
       .next-wrap { flex:0 0 auto; gap:3px; }
@@ -154,6 +182,9 @@
       .grid-head, .grid-row { grid-template-columns:34px max-content; column-gap:3px; }
       .control { height:46px; }
       .side-buttons { gap:3px; }
+      .stat-value { font-size:18px; }
+      .record-stat .stat-value { font-size:17px; }
+      .stat-label { font-size:8px; }
       .light-btn { padding:3px 5px; font-size:9px; }
       .sound-btn { padding:3px; width:30px; }
     }
@@ -173,7 +204,7 @@
     <div class="headline">
       <div>
         <p class="eyebrow">⚡ Гра, а не справжній графік</p>
-        <h1>ДТЕКтріс <span class="date">10 ЛИСТОПАДА</span></h1>
+        <h1>ДТЕКтріс <time class="date" id="game-date">10 ЛИСТОПАДА</time></h1>
       </div>
       <span class="tag">Українська версія 🇺🇦</span>
     </div>
@@ -183,6 +214,7 @@
         <div class="stat"><span class="stat-label">Рахунок</span><strong class="stat-value" id="score">0</strong></div>
         <div class="stat"><span class="stat-label">Рядки</span><strong class="stat-value" id="lines">0</strong></div>
         <div class="stat"><span class="stat-label">Рівень</span><strong class="stat-value" id="level">1</strong></div>
+        <button class="stat record-stat" id="records-button" type="button" aria-label="Переглянути рекорди" title="Переглянути 5 найкращих результатів"><span class="stat-label">🏆 Рекорд</span><strong class="stat-value" id="best-score">0</strong></button>
         <div class="next-wrap"><div><span class="stat-label">Далі</span></div><div class="preview" id="preview" aria-label="Наступна фігура"></div></div>
       </div>
       <div class="dispatch" id="dispatch" role="status" aria-live="polite" aria-atomic="true">
@@ -223,6 +255,17 @@
     </section>
     <div class="footer">Неофіційна пародійна гра, не пов’язана з компанією ДТЕК. Клітинки вигадані й не показують реальних відключень.</div>
   </main>
+  <div class="records-dialog hidden" id="records-dialog" role="dialog" aria-modal="true" aria-labelledby="records-title" aria-hidden="true">
+    <section class="records-panel">
+      <div class="records-head"><h2 id="records-title">🏆 Зал слави</h2><button type="button" class="records-close" id="records-close" aria-label="Закрити рекорди">×</button></div>
+      <p class="records-note">Топ-5 результатів для кожного режиму. Автозбереження в цьому браузері — без реєстрації та інтернету.</p>
+      <div class="records-tabs" role="group" aria-label="Режим рекордів">
+        <button class="records-tab" id="records-chaos" type="button" aria-pressed="true">⚡ Хаос</button>
+        <button class="records-tab" id="records-classic" type="button" aria-pressed="false">🟨 Чисте поле</button>
+      </div>
+      <ol class="records-list" id="records-list" aria-live="polite"></ol>
+    </section>
+  </div>
   <script>
     (() => {
       'use strict';
@@ -323,9 +366,98 @@
         ]
       };
       const $=id=>document.getElementById(id);
+      // Display the date in Ukraine, regardless of the player's timezone.
+      const ukDay=new Intl.DateTimeFormat('uk-UA',{timeZone:'Europe/Kyiv',day:'numeric',month:'long'});
+      const ukStamp=new Intl.DateTimeFormat('uk-UA',{timeZone:'Europe/Kyiv',day:'2-digit',month:'short',year:'numeric'});
+      const ukParts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Kyiv',year:'numeric',month:'2-digit',day:'2-digit'});
+      function updateGameDate(){
+        const now=new Date();
+        const parts=Object.fromEntries(ukParts.formatToParts(now).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
+        const date=$('game-date');
+        date.textContent=ukDay.format(now).toLocaleUpperCase('uk-UA');
+        date.dateTime=`${parts.year}-${parts.month}-${parts.day}`;
+      }
+      updateGameDate();
+      // The next tick or returning to the tab also handles midnight and device clock changes.
+      setInterval(updateGameDate,60*1000);
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateGameDate();});
+      window.addEventListener('focus',updateGameDate);
+
       const els={board:$('board'), preview:$('preview'),overlay:$('overlay'),overlayTitle:$('overlay-title'),overlayDescription:$('overlay-description'),overlayButton:$('overlay-button'),score:$('score'),lines:$('lines'),level:$('level'),status:$('status'),statusText:$('status-text'),dispatch:$('dispatch'),dispatchMessage:$('dispatch-message'),pause:$('pause'),sound:$('sound'),mode:$('mode')};
       let cells=[], previewCells=[], board=[], piece=null, next=null, bag=[], timer=null, running=false, paused=false, over=false, score=0, lines=0, level=1;
       let lastMeme='', lockCount=0, dangerWarned=false;
+      const RECORDS_KEY='dtektris-records-v1';
+      const TOP_COUNT=5;
+      const formatPoints=n=>Math.round(n).toLocaleString('uk-UA');
+      function compactPoints(n){
+        if(n>=1000000)return (n/1000000).toFixed(n%1000000===0?0:1).replace('.',',')+'м';
+        if(n>=10000)return (n/1000).toFixed(n%1000===0?0:1).replace('.',',')+'к';
+        return formatPoints(n);
+      }
+      function safeRecord(v){
+        if(!v||typeof v!=='object'||typeof v.id!=='string'||!v.id || !Number.isSafeInteger(v.score) || v.score<=0 || !Number.isFinite(v.at))return null;
+        return {id:v.id.slice(0,100),score:v.score,lines:Number.isSafeInteger(v.lines)&&v.lines>=0?v.lines:0,level:Number.isSafeInteger(v.level)&&v.level>0?v.level:1,at:Math.min(Date.now(),Math.max(0,v.at))};
+      }
+      function loadRecords(){
+        try{
+          const raw=JSON.parse(localStorage.getItem(RECORDS_KEY)||'{}');
+          const normalized={chaos:[],classic:[]};
+          for(const mode of Object.keys(normalized)){
+            if(Array.isArray(raw?.[mode]))normalized[mode]=raw[mode].map(safeRecord).filter(Boolean).sort((a,b)=>b.score-a.score || b.lines-a.lines || b.at-a.at).slice(0,TOP_COUNT);
+          }
+          return normalized;
+        }catch(_){return {chaos:[],classic:[]};}
+      }
+      let records=loadRecords(), activeRunId='', activeMode='chaos', recordsTab='chaos', autoPausedForRecords=false;
+      function storeRecords(){try{localStorage.setItem(RECORDS_KEY,JSON.stringify(records));}catch(_){/* Browser storage may be unavailable. */}}
+      function refreshBest(){
+        const best=records[els.mode.value]?.[0]?.score||0;
+        $('best-score').textContent=compactPoints(best);
+        $('records-button').title='Рекорд: '+formatPoints(best)+' очок. Переглянути топ-5';
+      }
+      function saveRunScore(){
+        if(!activeRunId||score<=0)return;
+        const list=records[activeMode];
+        if(!list)return;
+        const oldIndex=list.findIndex(r=>r.id===activeRunId);
+        if(oldIndex!==-1)list.splice(oldIndex,1);
+        list.push({id:activeRunId,score,lines,level,at:Date.now()});
+        list.sort((a,b)=>b.score-a.score || b.lines-a.lines || b.at-a.at);
+        records[activeMode]=list.slice(0,TOP_COUNT);
+        storeRecords();
+        if(els.mode.value===activeMode)refreshBest();
+      }
+      function renderRecords(){
+        for(const mode of ['chaos','classic'])$('records-'+mode).setAttribute('aria-pressed',String(recordsTab===mode));
+        const list=$('records-list');list.replaceChildren();
+        const items=records[recordsTab];
+        if(!items.length){const empty=document.createElement('li');empty.className='records-empty';empty.textContent='Поки що порожньо. Час встановити перший рекорд! ⚡';list.appendChild(empty);return;}
+        items.forEach((item,index)=>{
+          const li=document.createElement('li');li.className='records-entry';
+          const rank=document.createElement('span');rank.className='records-rank';rank.textContent=String(index+1).padStart(2,'0');
+          const data=document.createElement('div');data.className='records-data';
+          const points=document.createElement('strong');points.className='records-points';points.textContent=formatPoints(item.score)+' очок';
+          const details=document.createElement('span');details.className='records-details';
+          details.textContent=`${item.lines} рядків · ${item.level} рівень · ${ukStamp.format(new Date(item.at))}`;
+          data.append(points,details);li.append(rank,data);list.appendChild(li);
+        });
+      }
+      function openRecords(){
+        autoPausedForRecords=running&&!paused;
+        if(autoPausedForRecords)pause();
+        recordsTab=els.mode.value;renderRecords();
+        $('records-dialog').classList.remove('hidden');$('records-dialog').setAttribute('aria-hidden','false');
+        document.body.classList.add('records-open');
+        $('records-close').focus();
+      }
+      function closeRecords(){
+        $('records-dialog').classList.add('hidden');$('records-dialog').setAttribute('aria-hidden','true');
+        document.body.classList.remove('records-open');
+        if(autoPausedForRecords&&running&&paused)pause();
+        autoPausedForRecords=false;
+        $('records-button').focus();
+      }
+
       // Everything is synthesized with Web Audio: no sound files or external services.
       // Audio context is created only after a player gesture (mobile autoplay policy).
       const SOUND_KEY='dtektris-sound-v1';
@@ -472,13 +604,16 @@
       function startTimer(){stopTimer();timer=setInterval(()=>{if(running&&!paused)gravity();},Math.max(125,940-(level-1)*75));}
       function reset(start=false){
         stopTimer();board=makeBoard();bag=[];score=0;lines=0;level=1;over=false;paused=false;running=start;lockCount=0;dangerWarned=false;
+        activeMode=els.mode.value;
+        activeRunId=start?`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,11)}`:'';
+        refreshBest();
         piece=makePiece(getShape());next=getShape();
         els.pause.textContent='Ⅱ Пауза';
         if(start){if(valid(piece.shape,piece.x,piece.y)){hideOverlay();startTimer();announce('start');sound('start');setStatus('Світло є. Поки що. ⚡',true);}else gameOver();}
         else {showOverlay('Складемо графік?','Лови фігури та заповнюй рядки. Хто сказав, що це просто?','▶ Почати гру');announce('intro');setStatus('Натисни «Почати гру».',false);}
         draw();
       }
-      function gameOver(){running=false;over=true;paused=false;stopTimer();sound('over');const meme=announce('over');showOverlay('Графік зламався 😅','Твій рахунок: '+score.toLocaleString('uk-UA')+'. '+meme,'↻ Спробувати ще');setStatus('Гра завершена. Навіть графіки іноді здаються.',false);draw();}
+      function gameOver(){saveRunScore();running=false;over=true;paused=false;stopTimer();sound('over');const meme=announce('over');showOverlay('Графік зламався 😅','Твій рахунок: '+score.toLocaleString('uk-UA')+'. '+meme,'↻ Спробувати ще');setStatus('Гра завершена. Навіть графіки іноді здаються.',false);draw();}
       function spawn(){piece=makePiece(next);next=getShape();if(!valid(piece.shape,piece.x,piece.y))gameOver();}
       function lock(){
         piece.shape.forEach((r,ry)=>r.forEach((v,rx)=>{if(v){const y=piece.y+ry,x=piece.x+rx;if(y>=0&&y<H)board[y][x]=1;}}));
@@ -490,6 +625,7 @@
           lines+=cleared;
           score+=([0,100,300,500,800][cleared]||800)*level;
           level=Math.floor(lines/10)+1;
+          saveRunScore();
           startTimer();
           announce(level>oldLevel?'level':'clear'+Math.min(cleared,4));
           sound(level>oldLevel?'level':'clear',cleared);
@@ -511,8 +647,8 @@
         const old=piece.shape,rot=old[0].map((_,i)=>old.map(r=>r[i]).reverse());
         for(const dx of [0,-1,1,-2,2]){if(valid(rot,piece.x+dx,piece.y)){piece.shape=rot;piece.x+=dx;sound('rotate');draw();return;}}
       }
-      function softDrop(){if(!running||paused||!piece)return;if(valid(piece.shape,piece.x,piece.y+1)){piece.y++;score++;sound('soft');draw();}else lock();}
-      function hardDrop(){if(!running||paused||!piece)return;let steps=0;while(valid(piece.shape,piece.x,piece.y+1)){piece.y++;steps++;}score+=steps*2;sound('drop');lock();}
+      function softDrop(){if(!running||paused||!piece)return;if(valid(piece.shape,piece.x,piece.y+1)){piece.y++;score++;saveRunScore();sound('soft');draw();}else lock();}
+      function hardDrop(){if(!running||paused||!piece)return;let steps=0;while(valid(piece.shape,piece.x,piece.y+1)){piece.y++;steps++;}score+=steps*2;saveRunScore();sound('drop');lock();}
       function pause(){if(!running||over)return;paused=!paused;els.pause.textContent=paused?'▶ Далі':'Ⅱ Пауза';if(paused){sound('pause');stopTimer();showOverlay('Пауза ☕',announce('pause'),'▶ Продовжити');setStatus('Гра на паузі.',false);}else{hideOverlay();startTimer();sound('resume');announce('resume');setStatus('Продовжуємо планові відключення.',true);}draw();}
       function onControl(action){if(!running||paused)return;({left:()=>move(-1),right:()=>move(1),rotate,down:softDrop,drop:hardDrop})[action]();}
       ['left','right','rotate','down','drop'].forEach(action=>$(action).addEventListener('click',()=>onControl(action)));
@@ -521,7 +657,12 @@
       els.sound.addEventListener('click',toggleSound);
       els.overlayButton.addEventListener('click',()=>{if(paused)pause();else reset(true);});
       els.mode.addEventListener('change',()=>reset(false));
+      $('records-button').addEventListener('click',openRecords);
+      $('records-close').addEventListener('click',closeRecords);
+      $('records-dialog').addEventListener('click',e=>{if(e.target===$('records-dialog'))closeRecords();});
+      ['chaos','classic'].forEach(mode=>$('records-'+mode).addEventListener('click',()=>{recordsTab=mode;renderRecords();}));
       window.addEventListener('keydown',e=>{
+        if(!$('records-dialog').classList.contains('hidden')){if(e.key==='Escape')closeRecords();return;}
         if(['SELECT','INPUT','TEXTAREA','BUTTON'].includes(document.activeElement.tagName) && e.key!=='Escape'){
           // Buttons retain focus after tapping; allow keyboard game controls anyway except on select.
           if(document.activeElement.tagName==='SELECT')return;
